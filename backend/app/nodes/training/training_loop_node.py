@@ -1,6 +1,9 @@
+import logging
 from typing import Any
 
 from ...core.node_base import BaseNode, DataType, ParamDefinition, ParamType, PortDefinition
+
+logger = logging.getLogger(__name__)
 
 
 class TrainingLoopNode(BaseNode):
@@ -48,7 +51,7 @@ class TrainingLoopNode(BaseNode):
         device = params.get("device", "cpu")
 
         if device == "cuda" and not torch.cuda.is_available():
-            print("CUDA not available, falling back to CPU")
+            logger.warning("CUDA not available, falling back to CPU")
             device = "cpu"
 
         model = model.to(device)
@@ -86,7 +89,7 @@ class TrainingLoopNode(BaseNode):
 
             avg_loss = running_loss / max(batch_count, 1)
             epoch_losses.append(avg_loss)
-            print(f"Epoch {epoch + 1}/{epochs} - Loss: {avg_loss:.4f}")
+            logger.info("Epoch %d/%d - Loss: %.4f", epoch + 1, epochs, avg_loss)
 
         losses_tensor = torch.tensor(epoch_losses, dtype=torch.float32)
 

@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import logging
 from collections import defaultdict
 from typing import Any
 
 from ...core.node_base import BaseNode, DataType, ParamDefinition, ParamType, PortDefinition
+
+logger = logging.getLogger(__name__)
 
 
 class ForLoopNode(BaseNode):
@@ -123,6 +126,6 @@ class ForLoopNode(BaseNode):
                     f"Subgraph did not produce output '{out_port.name}' in iteration {i + 1}"
                 )
             current_data = out
-            print(f"[ForLoop] Iteration {i + 1}/{iterations} complete")
+            logger.info("Iteration %d/%d complete", i + 1, iterations)
 
         return {"output": current_data, "count": float(iterations)}

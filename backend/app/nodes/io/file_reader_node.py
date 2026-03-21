@@ -1,6 +1,9 @@
+import logging
 from typing import Any
 
 from ...core.node_base import BaseNode, DataType, ParamDefinition, ParamType, PortDefinition
+
+logger = logging.getLogger(__name__)
 
 
 class FileReaderNode(BaseNode):
@@ -80,8 +83,8 @@ class FileReaderNode(BaseNode):
             try:
                 data = [[float(cell) for cell in row] for row in rows if row]
                 tensor = torch.tensor(data, dtype=torch.float32)
-                print(f"[FileReader] Loaded CSV with shape {tensor.shape}")
+                logger.info("Loaded CSV with shape %s", tensor.shape)
             except ValueError:
-                print("[FileReader] CSV contains non-numeric data, tensor output will be empty")
+                logger.warning("CSV contains non-numeric data, tensor output will be empty")
 
         return {"text": text, "tensor": tensor}

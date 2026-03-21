@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 from pathlib import Path
 from typing import Any
 
@@ -13,6 +14,8 @@ from ..schemas.models import (
     PresetDefinition,
 )
 from .node_registry import NodeRegistry
+
+logger = logging.getLogger(__name__)
 
 
 class PresetRegistry:
@@ -34,7 +37,7 @@ class PresetRegistry:
                 self._presets[preset.preset_name] = preset
                 count += 1
             except Exception as e:
-                print(f"[PresetRegistry] Failed to load {path.name}: {e}")
+                logger.warning("Failed to load %s: %s", path.name, e)
         return count
 
     def get(self, name: str) -> PresetDefinition | None:

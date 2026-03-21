@@ -7,9 +7,12 @@ can be passed to Optimizer and TrainingLoop.  Users describe the architecture
 with familiar parameters; no Python coding required.
 """
 
+import logging
 from typing import Any
 
 from ...core.node_base import BaseNode, DataType, ParamDefinition, ParamType, PortDefinition
+
+logger = logging.getLogger(__name__)
 
 
 # ── Supported layer builders ────────────────────────────────────
@@ -23,22 +26,39 @@ def _build_layer(cfg: dict) -> "torch.nn.Module":
 
     builders: dict[str, type] = {
         "Conv2d": nn.Conv2d,
+        "Conv1d": nn.Conv1d,
+        "ConvTranspose2d": nn.ConvTranspose2d,
         "BatchNorm2d": nn.BatchNorm2d,
+        "BatchNorm1d": nn.BatchNorm1d,
+        "LayerNorm": nn.LayerNorm,
+        "GroupNorm": nn.GroupNorm,
+        "InstanceNorm2d": nn.InstanceNorm2d,
         "MaxPool2d": nn.MaxPool2d,
+        "AvgPool2d": nn.AvgPool2d,
+        "AdaptiveAvgPool2d": nn.AdaptiveAvgPool2d,
         "Dropout": nn.Dropout,
         "Linear": nn.Linear,
         "Flatten": nn.Flatten,
+        "Embedding": nn.Embedding,
     }
 
     # Activation functions
-    if t == "ReLU":
-        return nn.ReLU(inplace=True)
-    if t == "GELU":
-        return nn.GELU()
-    if t == "Sigmoid":
-        return nn.Sigmoid()
-    if t == "Tanh":
-        return nn.Tanh()
+    activations: dict[str, nn.Module] = {
+        "ReLU": nn.ReLU(inplace=True),
+        "GELU": nn.GELU(),
+        "Sigmoid": nn.Sigmoid(),
+        "Tanh": nn.Tanh(),
+        "LeakyReLU": nn.LeakyReLU(inplace=True),
+        "ELU": nn.ELU(inplace=True),
+        "SiLU": nn.SiLU(inplace=True),
+        "Mish": nn.Mish(inplace=True),
+        "SELU": nn.SELU(inplace=True),
+        "PReLU": nn.PReLU(),
+        "Hardswish": nn.Hardswish(inplace=True),
+        "Softmax": nn.Softmax(dim=-1),
+    }
+    if t in activations:
+        return activations[t]
 
     cls = builders.get(t)
     if cls is None:
@@ -50,7 +70,8 @@ class SequentialModelNode(BaseNode):
     NODE_NAME = "SequentialModel"
     CATEGORY = "Training"
     DESCRIPTION = (
-        "Build an nn.Sequential model from a JSON layer list. "
+        "Build an nn.Sequential model visually. "
+        "Double-click to open the architecture editor and drag-and-drop layers. "
         "Outputs a MODEL that can be connected to Optimizer and TrainingLoop."
     )
 
@@ -98,6 +119,6 @@ class SequentialModelNode(BaseNode):
         model = nn.Sequential(*modules)
 
         total = sum(p.numel() for p in model.parameters())
-        print(f"[SequentialModel] Built model with {len(modules)} layers, {total:,} parameters")
+        logger.info("Built model with %d layers, %s parameters", len(modules), f"{total:,}")
 
         return {"model": model}

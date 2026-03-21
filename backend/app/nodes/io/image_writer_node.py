@@ -1,6 +1,9 @@
+import logging
 from typing import Any
 
 from ...core.node_base import BaseNode, DataType, ParamDefinition, ParamType, PortDefinition
+
+logger = logging.getLogger(__name__)
 
 
 class ImageWriterNode(BaseNode):
@@ -61,6 +64,6 @@ class ImageWriterNode(BaseNode):
             image = image[0]
 
         save_image(image, str(p))
-        print(f"[ImageWriter] Saved image to {p}")
+        logger.info("Saved image to %s", p)
 
         return {"path": str(p)}

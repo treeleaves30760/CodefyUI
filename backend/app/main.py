@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -5,28 +6,37 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from .api import routes_graph, routes_nodes, routes_presets, ws_execution
 from .config import settings
+from .core.logging_config import setup_logging
 from .core.node_registry import registry
 from .core.preset_registry import preset_registry
+
+logger = logging.getLogger(__name__)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    setup_logging(
+        level=settings.LOG_LEVEL,
+        log_dir=settings.LOG_DIR,
+        json_format=settings.LOG_JSON,
+    )
+
     # Discover built-in nodes
     count = registry.discover(settings.NODES_DIR, "app.nodes")
-    print(f"[CodefyUI] Discovered {count} built-in nodes")
+    logger.info("Discovered %d built-in nodes", count)
 
     # Discover custom nodes
     custom_count = registry.discover(settings.CUSTOM_NODES_DIR, "app.custom_nodes")
-    print(f"[CodefyUI] Discovered {custom_count} custom nodes")
+    logger.info("Discovered %d custom nodes", custom_count)
 
     for name in sorted(registry.nodes.keys()):
-        print(f"  - {name} ({registry.nodes[name].CATEGORY})")
+        logger.debug("  - %s (%s)", name, registry.nodes[name].CATEGORY)
 
     # Discover presets
     preset_count = preset_registry.discover(settings.PRESETS_DIR, registry)
-    print(f"[CodefyUI] Discovered {preset_count} presets")
+    logger.info("Discovered %d presets", preset_count)
     for name in sorted(preset_registry.presets.keys()):
-        print(f"  * {name}")
+        logger.debug("  * %s", name)
 
     yield
 

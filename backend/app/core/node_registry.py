@@ -2,11 +2,14 @@ from __future__ import annotations
 
 import importlib
 import inspect
+import logging
 import pkgutil
 from pathlib import Path
 from typing import Type
 
 from .node_base import BaseNode
+
+logger = logging.getLogger(__name__)
 
 
 class NodeRegistry:
@@ -36,7 +39,7 @@ class NodeRegistry:
             try:
                 module = importlib.import_module(modname)
             except Exception as e:
-                print(f"[NodeRegistry] Failed to import {modname}: {e}")
+                logger.warning("Failed to import %s: %s", modname, e)
                 continue
             for _, obj in inspect.getmembers(module, inspect.isclass):
                 if (

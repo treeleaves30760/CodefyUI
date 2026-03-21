@@ -1,6 +1,9 @@
+import logging
 from typing import Any
 
 from ...core.node_base import BaseNode, DataType, ParamDefinition, ParamType, PortDefinition
+
+logger = logging.getLogger(__name__)
 
 
 class ImageBatchReaderNode(BaseNode):
@@ -96,12 +99,12 @@ class ImageBatchReaderNode(BaseNode):
                 img = Image.open(p).convert(mode)
                 tensors.append(transform(img))
             except Exception as e:
-                print(f"[ImageBatchReader] Skipping {p.name}: {e}")
+                logger.warning("Skipping %s: %s", p.name, e)
 
         if not tensors:
             raise ValueError("No images could be loaded")
 
         batch = torch.stack(tensors)  # (N, C, H, W)
-        print(f"[ImageBatchReader] Loaded {len(tensors)} images, batch shape: {batch.shape}")
+        logger.info("Loaded %d images, batch shape: %s", len(tensors), batch.shape)
 
         return {"images": batch, "count": len(tensors)}
