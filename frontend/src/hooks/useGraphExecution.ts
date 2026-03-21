@@ -62,6 +62,11 @@ export function useGraphExecution() {
       setTabStatus(tabId, 'running');
       addTabLog(tabId, { message: 'Execution started', type: 'info' });
     });
+
+    ws.on('execution_stopped', () => {
+      setTabStatus(tabId, 'idle');
+      addTabLog(tabId, { message: 'Execution cancelled', type: 'info' });
+    });
   }, [activeTabId, getActiveTab, setTabNodeExecutionStatus, setTabStatus, addTabLog]);
 
   const execute = useCallback(async () => {
@@ -87,9 +92,7 @@ export function useGraphExecution() {
   const stop = useCallback(() => {
     const tab = getActiveTab();
     tab.ws.send({ action: 'stop' });
-    setTabStatus(tab.id, 'idle');
-    addTabLog(tab.id, { message: 'Execution stopped by user', type: 'info' });
-  }, [getActiveTab, setTabStatus, addTabLog]);
+  }, [getActiveTab]);
 
   return { execute, stop };
 }

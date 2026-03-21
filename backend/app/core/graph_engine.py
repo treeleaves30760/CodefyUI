@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 import traceback
 from collections import defaultdict, deque
 from typing import Any, Callable
@@ -8,6 +9,8 @@ from typing import Any, Callable
 from .node_base import BaseNode
 from .node_registry import registry
 from .type_system import is_compatible
+
+logger = logging.getLogger(__name__)
 
 
 class GraphValidationError(Exception):
@@ -193,12 +196,59 @@ def topological_sort(nodes: list[dict], edges: list[dict]) -> list[str]:
     return order
 
 
+def topological_levels(nodes: list[dict], edges: list[dict]) -> list[list[str]]:
+    """Kahn's algorithm returning nodes grouped by DAG level for parallel execution."""
+    in_degree: dict[str, int] = {n["id"]: 0 for n in nodes}
+    adj: dict[str, list[str]] = defaultdict(list)
+
+    for edge in edges:
+        adj[edge["source"]].append(edge["target"])
+        if edge["target"] in in_degree:
+            in_degree[edge["target"]] += 1
+
+    queue = deque(nid for nid, deg in in_degree.items() if deg == 0)
+    levels: list[list[str]] = []
+
+    while queue:
+        level = list(queue)
+        levels.append(level)
+        next_queue: deque[str] = deque()
+        for node in level:
+            for neighbor in adj[node]:
+                in_degree[neighbor] -= 1
+                if in_degree[neighbor] == 0:
+                    next_queue.append(neighbor)
+        queue = next_queue
+
+    total = sum(len(lv) for lv in levels)
+    if total != len(nodes):
+        raise GraphValidationError("Graph contains a cycle")
+
+    return levels
+
+
 async def execute_graph(
     nodes: list[dict],
     edges: list[dict],
     on_progress: Callable[[str, str, dict[str, Any] | None], Any] | None = None,
+    context: "ExecutionContext | None" = None,
+    error_mode: str = "fail_fast",
+    max_retries: int = 0,
+    cache: "ExecutionCache | None" = None,
 ) -> dict[str, Any]:
-    """Execute the graph in topological order. Returns outputs keyed by node ID."""
+    """Execute the graph with parallel levels, cancellation, error recovery, and caching.
+
+    Args:
+        nodes: Graph node definitions.
+        edges: Graph edge definitions.
+        on_progress: Callback(node_id, status, data).
+        context: ExecutionContext for cancellation support.
+        error_mode: 'fail_fast', 'continue', or 'retry'.
+        max_retries: Number of retries when error_mode is 'retry'.
+        cache: Optional ExecutionCache for skipping unchanged nodes.
+    """
+    from .execution_context import CancellationError
+
     # Expand preset nodes iteratively (handles nested presets)
     internal_to_preset: dict[str, str] = {}
     expanded_nodes, expanded_edges = nodes, edges
@@ -213,7 +263,7 @@ async def execute_graph(
     if errors:
         raise GraphValidationError("; ".join(errors))
 
-    order = topological_sort(expanded_nodes, expanded_edges)
+    levels = topological_levels(expanded_nodes, expanded_edges)
     node_map = {n["id"]: n for n in expanded_nodes}
 
     # Build edge lookup: target_id -> list of (source_id, source_handle, target_handle)
@@ -224,11 +274,21 @@ async def execute_graph(
         )
 
     outputs: dict[str, dict[str, Any]] = {}
+    node_errors: dict[str, str] = {}  # node_id -> error message
+    node_cache_keys: dict[str, str] = {}  # node_id -> cache key
 
-    for node_id in order:
+    max_workers = context.max_workers if context else 4
+    semaphore = asyncio.Semaphore(max_workers)
+
+    async def _execute_single_node(node_id: str) -> None:
+        """Execute one node with cancellation, caching, and error recovery."""
+        if context and context.cancelled:
+            raise CancellationError()
+
         node_def = node_map[node_id]
         node_type = node_def["type"]
         params = node_def.get("data", {}).get("params", {})
+        progress_id = internal_to_preset.get(node_id, node_id)
 
         node_cls = registry.get(node_type)
         if not node_cls:
@@ -236,30 +296,97 @@ async def execute_graph(
 
         # Gather inputs from upstream edges
         inputs: dict[str, Any] = {}
+        has_failed_input = False
         for src_id, src_handle, tgt_handle in incoming.get(node_id, []):
+            if src_id in node_errors:
+                has_failed_input = True
+                break
             if src_id in outputs and src_handle in outputs[src_id]:
                 inputs[tgt_handle] = outputs[src_id][src_handle]
 
-        # Map progress back to preset node ID if this is an internal node
-        progress_id = internal_to_preset.get(node_id, node_id)
+        # Skip if upstream failed (in continue/retry mode)
+        if has_failed_input:
+            node_errors[node_id] = "skipped: upstream node failed"
+            if on_progress:
+                await _maybe_await(on_progress(progress_id, "skipped", None))
+            return
+
+        # Check cache
+        if cache is not None:
+            upstream_keys = []
+            for src_id, _, _ in incoming.get(node_id, []):
+                if src_id in node_cache_keys:
+                    upstream_keys.append(node_cache_keys[src_id])
+            cache_key = cache.compute_key(node_type, params, upstream_keys)
+            node_cache_keys[node_id] = cache_key
+            cached = cache.get(cache_key)
+            if cached is not None:
+                outputs[node_id] = cached
+                if on_progress:
+                    await _maybe_await(on_progress(progress_id, "cached", cached))
+                return
 
         if on_progress:
             await _maybe_await(on_progress(progress_id, "running", None))
 
-        try:
-            instance = node_cls()
-            loop = asyncio.get_event_loop()
-            result = await loop.run_in_executor(None, instance.execute, inputs, params)
-            outputs[node_id] = result
+        attempts = max_retries + 1 if error_mode == "retry" else 1
+        last_error: Exception | None = None
 
-            if on_progress:
-                await _maybe_await(on_progress(progress_id, "completed", result))
-        except Exception as e:
+        for attempt in range(attempts):
+            if context and context.cancelled:
+                raise CancellationError()
+            try:
+                async with semaphore:
+                    instance = node_cls()
+                    loop = asyncio.get_event_loop()
+                    result = await loop.run_in_executor(None, instance.execute, inputs, params)
+                outputs[node_id] = result
+                if cache is not None and node_id in node_cache_keys:
+                    cache.put(node_cache_keys[node_id], result)
+                if on_progress:
+                    await _maybe_await(on_progress(progress_id, "completed", result))
+                return
+            except Exception as e:
+                last_error = e
+                if attempt < attempts - 1:
+                    await asyncio.sleep(0.5 * (attempt + 1))  # backoff
+
+        # All attempts failed
+        assert last_error is not None
+        if error_mode == "fail_fast":
             if on_progress:
                 await _maybe_await(
-                    on_progress(progress_id, "error", {"error": str(e), "traceback": traceback.format_exc()})
+                    on_progress(progress_id, "error", {"error": str(last_error), "traceback": traceback.format_exc()})
                 )
-            raise
+            raise last_error
+        else:
+            # continue or retry-exhausted
+            node_errors[node_id] = str(last_error)
+            if on_progress:
+                await _maybe_await(
+                    on_progress(progress_id, "error", {"error": str(last_error), "traceback": traceback.format_exc()})
+                )
+
+    # Execute level by level
+    for level in levels:
+        if context and context.cancelled:
+            raise CancellationError()
+
+        if len(level) == 1:
+            await _execute_single_node(level[0])
+        else:
+            # Run independent nodes in this level concurrently
+            tasks = [asyncio.create_task(_execute_single_node(nid)) for nid in level]
+            results = await asyncio.gather(*tasks, return_exceptions=True)
+            for i, result in enumerate(results):
+                if isinstance(result, CancellationError):
+                    raise result
+                if isinstance(result, Exception):
+                    if error_mode == "fail_fast":
+                        # Cancel remaining tasks
+                        for t in tasks:
+                            t.cancel()
+                        raise result
 
     return outputs
 
@@ -268,3 +395,9 @@ async def _maybe_await(val: Any) -> Any:
     if asyncio.iscoroutine(val):
         return await val
     return val
+
+
+# Avoid circular import at module level — these are imported lazily inside execute_graph
+if False:  # TYPE_CHECKING
+    from .cache import ExecutionCache
+    from .execution_context import ExecutionContext

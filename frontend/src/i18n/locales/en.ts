@@ -29,12 +29,17 @@ const en = {
   'toolbar.export.success': 'Subgraph "{name}" exported successfully! It now appears in the Presets tab.',
   'toolbar.export.fail': 'Export failed: {error}',
   'toolbar.export.empty': 'Canvas is empty — add some nodes before exporting.',
+  'toolbar.exportJson': 'Export JSON',
+  'toolbar.exportJson.title': 'Download graph as JSON file (includes subgraphs)',
+  'toolbar.exportJson.empty': 'Canvas is empty — add some nodes before exporting.',
 
   // Status
   'status.idle': 'Idle',
   'status.running': 'Running',
   'status.completed': 'Completed',
   'status.error': 'Error',
+  'status.skipped': 'Skipped',
+  'status.cached': 'Cached',
 
   // Node Palette
   'palette.title': 'Node Palette',
@@ -65,6 +70,7 @@ const en = {
   'node.opt': 'opt',
   'node.running': 'Running...',
   'node.completed': 'Completed',
+  'node.cached': 'Cached',
   'node.error': 'Error: {error}',
 
   // Results Panel
@@ -95,6 +101,24 @@ const en = {
   // Tabs
   'tabs.add': 'New tab',
   'tabs.closeRunning': 'This tab is still running. Close it anyway?',
+
+  // Subgraph Editor (SequentialModel)
+  'subgraph.title': 'Model Architecture Editor',
+  'subgraph.palette': 'Layers',
+  'subgraph.apply': 'Apply',
+  'subgraph.cancel': 'Cancel',
+  'subgraph.import': 'Import',
+  'subgraph.export': 'Export',
+  'subgraph.import.title': 'Import a saved model architecture',
+  'subgraph.export.title': 'Export current architecture as JSON',
+  'subgraph.empty': 'Drag layers from the left panel to build your model',
+  'subgraph.layerCount': '{count} layers',
+  'subgraph.params': 'Parameters',
+  'subgraph.noParams': 'No parameters',
+  'subgraph.deleteLayer': 'Delete',
+  'subgraph.hint': 'Double-click to edit architecture',
+  'subgraph.import.fail': 'Import failed: {error}',
+  'subgraph.searchLayers': 'Search layers...',
 
   // Language
   'lang.label': 'EN',

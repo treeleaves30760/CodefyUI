@@ -1,9 +1,15 @@
+import asyncio
 import json
+import logging
 from typing import Any
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
+from ..core.cache import ExecutionCache
+from ..core.execution_context import CancellationError, ExecutionContext
 from ..core.graph_engine import GraphValidationError, execute_graph
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
@@ -11,6 +17,11 @@ router = APIRouter()
 @router.websocket("/ws/execution")
 async def websocket_execution(ws: WebSocket):
     await ws.accept()
+
+    current_task: asyncio.Task | None = None
+    current_context: ExecutionContext | None = None
+    cache = ExecutionCache()
+
     try:
         while True:
             raw = await ws.receive_text()
@@ -18,8 +29,18 @@ async def websocket_execution(ws: WebSocket):
 
             action = data.get("action")
             if action == "execute":
+                # Cancel any existing execution first
+                if current_task and not current_task.done():
+                    if current_context:
+                        current_context.cancel()
+                    current_task.cancel()
+
                 nodes = data.get("nodes", [])
                 edges = data.get("edges", [])
+                error_mode = data.get("error_mode", "fail_fast")
+                max_retries = data.get("max_retries", 0)
+
+                current_context = ExecutionContext()
 
                 async def on_progress(node_id: str, status: str, result: dict[str, Any] | None) -> None:
                     msg: dict[str, Any] = {
@@ -42,17 +63,44 @@ async def websocket_execution(ws: WebSocket):
                                 break
                     await ws.send_text(json.dumps(msg))
 
-                try:
-                    await ws.send_text(json.dumps({"type": "execution_start"}))
-                    await execute_graph(nodes, edges, on_progress=on_progress)
-                    await ws.send_text(json.dumps({"type": "execution_complete"}))
-                except GraphValidationError as e:
-                    await ws.send_text(json.dumps({"type": "execution_error", "error": str(e)}))
-                except Exception as e:
-                    await ws.send_text(json.dumps({"type": "execution_error", "error": str(e)}))
+                async def _run() -> None:
+                    try:
+                        await ws.send_text(json.dumps({"type": "execution_start"}))
+                        await execute_graph(
+                            nodes,
+                            edges,
+                            on_progress=on_progress,
+                            context=current_context,
+                            error_mode=error_mode,
+                            max_retries=max_retries,
+                            cache=cache,
+                        )
+                        await ws.send_text(json.dumps({"type": "execution_complete"}))
+                    except CancellationError:
+                        await ws.send_text(json.dumps({"type": "execution_stopped"}))
+                    except GraphValidationError as e:
+                        await ws.send_text(json.dumps({"type": "execution_error", "error": str(e)}))
+                    except Exception as e:
+                        await ws.send_text(json.dumps({"type": "execution_error", "error": str(e)}))
+
+                current_task = asyncio.create_task(_run())
+
             elif action == "stop":
-                await ws.send_text(json.dumps({"type": "execution_stopped"}))
+                if current_context:
+                    current_context.cancel()
+                if current_task and not current_task.done():
+                    current_task.cancel()
+                else:
+                    await ws.send_text(json.dumps({"type": "execution_stopped"}))
+
+            elif action == "clear_cache":
+                cache.clear()
+                await ws.send_text(json.dumps({"type": "cache_cleared"}))
+
             else:
                 await ws.send_text(json.dumps({"type": "error", "error": f"Unknown action: {action}"}))
     except WebSocketDisconnect:
-        pass
+        if current_context:
+            current_context.cancel()
+        if current_task and not current_task.done():
+            current_task.cancel()

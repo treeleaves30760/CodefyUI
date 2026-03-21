@@ -31,12 +31,17 @@ const zhTW: Record<TranslationKey, string> = {
   'toolbar.export.success': '子圖「{name}」匯出成功！已出現在預設模組分頁中。',
   'toolbar.export.fail': '匯出失敗：{error}',
   'toolbar.export.empty': '畫布為空 — 請先新增一些節點再匯出。',
+  'toolbar.exportJson': '匯出 JSON',
+  'toolbar.exportJson.title': '將圖表下載為 JSON 檔案（包含子圖）',
+  'toolbar.exportJson.empty': '畫布為空 — 請先新增一些節點再匯出。',
 
   // Status
   'status.idle': '閒置',
   'status.running': '執行中',
   'status.completed': '已完成',
   'status.error': '錯誤',
+  'status.skipped': '已跳過',
+  'status.cached': '已快取',
 
   // Node Palette
   'palette.title': '節點面板',
@@ -67,6 +72,7 @@ const zhTW: Record<TranslationKey, string> = {
   'node.opt': '可選',
   'node.running': '執行中...',
   'node.completed': '已完成',
+  'node.cached': '已快取',
   'node.error': '錯誤：{error}',
 
   // Results Panel
@@ -97,6 +103,24 @@ const zhTW: Record<TranslationKey, string> = {
   // Tabs
   'tabs.add': '新增分頁',
   'tabs.closeRunning': '此分頁仍在執行中，確定要關閉嗎？',
+
+  // Subgraph Editor (SequentialModel)
+  'subgraph.title': '模型架構編輯器',
+  'subgraph.palette': '層級',
+  'subgraph.apply': '套用',
+  'subgraph.cancel': '取消',
+  'subgraph.import': '匯入',
+  'subgraph.export': '匯出',
+  'subgraph.import.title': '匯入已儲存的模型架構',
+  'subgraph.export.title': '將目前架構匯出為 JSON',
+  'subgraph.empty': '從左側面板拖曳層級來建構你的模型',
+  'subgraph.layerCount': '{count} 個層級',
+  'subgraph.params': '參數',
+  'subgraph.noParams': '無參數',
+  'subgraph.deleteLayer': '刪除',
+  'subgraph.hint': '雙擊以編輯架構',
+  'subgraph.import.fail': '匯入失敗：{error}',
+  'subgraph.searchLayers': '搜尋層級...',
 
   // Language
   'lang.label': '中',

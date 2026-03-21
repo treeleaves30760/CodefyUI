@@ -41,7 +41,7 @@ export interface NodeData {
   type: string;
   params: Record<string, any>;
   definition?: NodeDefinition;
-  executionStatus?: 'idle' | 'running' | 'completed' | 'error';
+  executionStatus?: ExecutionStatus;
   error?: string;
   isPreset?: boolean;
   presetDefinition?: PresetDefinition;
@@ -49,11 +49,12 @@ export interface NodeData {
   [key: string]: unknown;
 }
 
-export type ExecutionStatus = 'idle' | 'running' | 'completed' | 'error';
+export type ExecutionStatus = 'idle' | 'running' | 'completed' | 'error' | 'skipped' | 'cached';
 
 export interface GraphSaveData {
   nodes: any[];
   edges: any[];
   name: string;
   description: string;
+  presets?: PresetDefinition[];
 }
