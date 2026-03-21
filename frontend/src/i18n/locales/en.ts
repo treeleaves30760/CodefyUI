@@ -3,35 +3,45 @@ const en = {
   'toolbar.run': 'Run',
   'toolbar.running': 'Running...',
   'toolbar.stop': 'Stop',
-  'toolbar.save': 'Save',
-  'toolbar.load': 'Load',
-  'toolbar.clear': 'Clear',
-  'toolbar.reloadNodes': 'Reload Nodes',
   'toolbar.run.title': 'Execute the pipeline (Run)',
   'toolbar.stop.title': 'Stop execution',
-  'toolbar.save.title': 'Save graph',
-  'toolbar.load.title': 'Load a saved graph',
-  'toolbar.clear.title': 'Clear the canvas',
+  'toolbar.reloadNodes': 'Reload Nodes',
   'toolbar.reloadNodes.title': 'Reload node definitions from backend',
-  'toolbar.clear.confirm': 'Clear the canvas? All unsaved work will be lost.',
+  'toolbar.reload.fail': 'Reload failed: {error}',
+
+  // Menu: File
+  'toolbar.menu.file': 'File',
+  'toolbar.save': 'Save',
+  'toolbar.save.title': 'Save graph',
   'toolbar.save.prompt': 'Enter a name for this graph:',
   'toolbar.save.success': 'Graph "{name}" saved successfully.',
   'toolbar.save.fail': 'Save failed: {error}',
+  'toolbar.load': 'Load',
+  'toolbar.load.title': 'Load a saved graph',
   'toolbar.load.fail': 'Load failed: {error}',
-  'toolbar.reload.fail': 'Reload failed: {error}',
   'toolbar.load.loading': 'Loading...',
   'toolbar.load.empty': 'No saved graphs',
-  'toolbar.import': 'Import JSON file...',
+  'toolbar.import': 'Import JSON...',
   'toolbar.import.fail': 'Import failed: {error}',
-  'toolbar.export': 'Export Subgraph',
+  'toolbar.clear': 'Clear Canvas',
+  'toolbar.clear.title': 'Clear the canvas',
+  'toolbar.clear.confirm': 'Clear the canvas? All unsaved work will be lost.',
+
+  // Menu: Export
+  'toolbar.menu.export': 'Export',
+  'toolbar.export.empty': 'Canvas is empty — add some nodes before exporting.',
+  'toolbar.exportJson': 'Export as JSON',
+  'toolbar.exportJson.title': 'Download graph as JSON file (includes subgraphs)',
+  'toolbar.exportJson.empty': 'Canvas is empty — add some nodes before exporting.',
+  'toolbar.export': 'Export as Subgraph',
   'toolbar.export.title': 'Export current graph as a reusable subgraph/preset',
   'toolbar.export.prompt': 'Enter a name for this subgraph:',
   'toolbar.export.success': 'Subgraph "{name}" exported successfully! It now appears in the Presets tab.',
   'toolbar.export.fail': 'Export failed: {error}',
-  'toolbar.export.empty': 'Canvas is empty — add some nodes before exporting.',
-  'toolbar.exportJson': 'Export JSON',
-  'toolbar.exportJson.title': 'Download graph as JSON file (includes subgraphs)',
-  'toolbar.exportJson.empty': 'Canvas is empty — add some nodes before exporting.',
+  'toolbar.exportPython': 'Export as Python',
+  'toolbar.exportPython.title': 'Download graph as a standalone Python script',
+  'toolbar.exportPython.empty': 'Canvas is empty — add some nodes before exporting.',
+  'toolbar.exportPython.fail': 'Python export failed: {error}',
 
   // Status
   'status.idle': 'Idle',
@@ -75,6 +85,9 @@ const en = {
 
   // Results Panel
   'results.title': 'Execution Log',
+  'results.training': 'Training',
+  'results.trainingConfig': 'Parameters',
+  'results.trainingEmpty': 'No training data yet.',
   'results.clear': 'Clear',
   'results.empty': 'No log entries. Run the pipeline to see output.',
 
@@ -119,6 +132,11 @@ const en = {
   'subgraph.hint': 'Double-click to edit architecture',
   'subgraph.import.fail': 'Import failed: {error}',
   'subgraph.searchLayers': 'Search layers...',
+
+  // Tooltips
+  'toolbar.tooltips.on': 'Tips ON',
+  'toolbar.tooltips.off': 'Tips OFF',
+  'toolbar.tooltips.title': 'Toggle node description tooltips',
 
   // Language
   'lang.label': 'EN',

@@ -1,18 +1,16 @@
 /* =========================================================
-   Toolbar.module.css
-   Static styles only — dynamic/state-driven values remain
-   as inline style props in the TSX component.
+   Toolbar.module.css — VS Code-style menu bar
    ========================================================= */
 
 /* ----- Root container ----- */
 .root {
-  height: 48px;
-  background: #1a1a1a; /* SURFACE.toolbar */
-  border-bottom: 1px solid #2a2a2a; /* SURFACE.border */
+  height: 40px;
+  background: #1a1a1a;
+  border-bottom: 1px solid #2a2a2a;
   display: flex;
   align-items: center;
-  padding: 0 16px;
-  gap: 8px;
+  padding: 0 12px;
+  gap: 2px;
   flex-shrink: 0;
   position: relative;
   z-index: 100;
@@ -20,41 +18,45 @@
 
 /* ----- Logo ----- */
 .logo {
-  font-size: 1rem;
+  font-size: 1.125rem;
   font-weight: 800;
-  color: #eeeeee; /* TEXT.primary */
+  color: #eee;
   margin-right: 12px;
   letter-spacing: -0.02em;
+  flex-shrink: 0;
 }
 
 .logoBrand {
-  color: #2196F3; /* BRAND.primary */
+  color: #2196F3;
 }
 
 .logoSuffix {
-  color: #888888; /* TEXT.tertiary */
+  color: #888;
 }
 
 /* ----- Divider ----- */
 .divider {
   width: 1px;
-  height: 24px;
-  background: #333333; /* SURFACE.borderLight */
+  height: 20px;
+  background: #333;
   flex-shrink: 0;
+  margin: 0 4px;
 }
 
-/* ----- ToolbarButton base ----- */
-/*
-  Dynamic per-button values (background, borderColor, color, opacity,
-  transform) are applied via inline style in the TSX component.
-  This class carries only the invariant structural / typographic styles.
-*/
-.button {
-  padding: 6px 14px;
-  border-radius: 5px;
-  border: 1px solid; /* colour set inline */
+/* ----- Run / Stop group ----- */
+.actionGroup {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ----- Run / Stop action buttons ----- */
+.actionButton {
+  padding: 4px 12px;
+  border-radius: 4px;
+  border: 1px solid;
   cursor: pointer;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   font-weight: 600;
   transition: all 0.15s;
   white-space: nowrap;
@@ -62,8 +64,114 @@
   font-family: inherit;
 }
 
-.button:disabled {
+.actionButton:disabled {
   cursor: not-allowed;
+}
+
+.runButton {
+  background: #1b5e20;
+  border-color: #4CAF50;
+  color: #4CAF50;
+}
+
+.runButton:hover:not(:disabled) {
+  background: #2e7d32;
+}
+
+.stopButton {
+  background: transparent;
+  border-color: #F44336;
+  color: #F44336;
+}
+
+.stopButton:hover:not(:disabled) {
+  background: #3d1a1a;
+}
+
+/* ----- Menu trigger (File / Load / Export / Reload) ----- */
+.menuWrapper {
+  position: relative;
+}
+
+.menuTrigger {
+  padding: 4px 10px;
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  color: #ccc;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  line-height: 1.4;
+  transition: background 0.1s;
+}
+
+.menuTrigger:hover {
+  background: #2a2a2a;
+  color: #eee;
+}
+
+.menuTriggerOpen {
+  background: #2a2a2a;
+  color: #eee;
+}
+
+/* ----- Dropdown panel ----- */
+.menuPanel {
+  position: absolute;
+  top: calc(100% + 2px);
+  left: 0;
+  min-width: 200px;
+  background: #1e1e1e;
+  border: 1px solid #444;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+  z-index: 200;
+  padding: 4px 0;
+}
+
+/* ----- Menu item ----- */
+.menuItem {
+  display: block;
+  width: 100%;
+  padding: 7px 14px;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: #ccc;
+  font-size: 0.8125rem;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: background 0.1s;
+}
+
+.menuItem:hover {
+  background: #2a2a2a;
+  color: #eee;
+}
+
+/* ----- Menu divider ----- */
+.menuDivider {
+  height: 1px;
+  background: #333;
+  margin: 4px 0;
+}
+
+/* ----- Menu messages (loading / empty) ----- */
+.menuMessage {
+  padding: 8px 14px;
+  font-size: 0.8125rem;
+  color: #666;
+}
+
+.menuMessageDim {
+  padding: 8px 14px;
+  font-size: 0.8125rem;
+  color: #555;
 }
 
 /* ----- Right-side cluster (status + language) ----- */
@@ -93,111 +201,54 @@
   font-size: 0.75rem;
 }
 
-/* ----- Language selector trigger button ----- */
+/* ----- Tooltip toggle ----- */
+.tooltipToggle {
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 1px solid;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  white-space: nowrap;
+  transition: all 0.15s;
+}
+
+/* ----- Language selector ----- */
 .langButton {
   padding: 3px 8px;
   border-radius: 4px;
-  border: 1px solid #444444; /* SURFACE.borderMedium */
-  color: #aaaaaa;
+  border: 1px solid #444;
+  color: #aaa;
   font-size: 0.75rem;
   font-weight: 600;
   cursor: pointer;
   min-width: 32px;
   text-align: center;
   font-family: inherit;
-  /* background set inline (open: #333, closed: #222) */
 }
 
-/* ----- Shared dropdown panel ----- */
-.dropdown {
-  position: absolute;
-  top: 100%;
-  background: #222222; /* SURFACE.input */
-  border: 1px solid #444444; /* SURFACE.borderMedium */
-  border-radius: 6px;
-  z-index: 200;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
-  overflow: hidden;
-}
-
-/* Load menu — anchored left */
-.loadDropdown {
-  composes: dropdown;
-  left: 0;
-  margin-top: 4px;
-  min-width: 200px;
-}
-
-/* Language menu — anchored right */
-.langDropdown {
-  composes: dropdown;
-  right: 0;
-  margin-top: 6px;
-  min-width: 140px;
-  padding: 4px 0;
-}
-
-/* Overlay that closes menus on outside click */
 .overlay {
   position: fixed;
   inset: 0;
   z-index: 199;
 }
 
-/* ----- Dropdown items ----- */
-.dropdownMessage {
-  padding: 10px 12px;
-  font-size: 0.8125rem;
+.langDropdown {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 6px;
+  min-width: 140px;
+  padding: 4px 0;
+  background: #1e1e1e;
+  border: 1px solid #444;
+  border-radius: 6px;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
 }
 
-.dropdownMessageMuted {
-  composes: dropdownMessage;
-  color: #666666; /* TEXT.muted */
-}
-
-.dropdownMessageDim {
-  composes: dropdownMessage;
-  color: #555555; /* TEXT.dim */
-}
-
-.dropdownItem {
-  display: block;
-  width: 100%;
-  padding: 8px 12px;
-  text-align: left;
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid #333333; /* SURFACE.borderLight */
-  color: #cccccc; /* TEXT.secondary */
-  font-size: 0.8125rem;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-/* Inner divider row inside the load dropdown */
-.dropdownDivider {
-  height: 1px;
-  background: #444444; /* SURFACE.borderMedium */
-  margin: 2px 0;
-}
-
-/* "Import from file" row inside the load dropdown */
-.dropdownImport {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  padding: 8px 12px;
-  text-align: left;
-  background: transparent;
-  border: none;
-  color: #2196F3; /* BRAND.primary */
-  font-size: 0.8125rem;
-  cursor: pointer;
-  font-family: inherit;
-}
-
-/* Language option row */
 .langOption {
   display: flex;
   align-items: center;
@@ -209,7 +260,6 @@
   font-size: 0.8125rem;
   cursor: pointer;
   font-family: inherit;
-  /* color / fontWeight set inline (active locale highlighted) */
 }
 
 .langOptionCheck {
