@@ -140,6 +140,11 @@ const zhTW: Record<TranslationKey, string> = {
   'toolbar.tooltips.off': '提示 OFF',
   'toolbar.tooltips.title': '切換節點描述提示',
 
+  // Grid Snap
+  'toolbar.gridSnap.on': '吸附 ON',
+  'toolbar.gridSnap.off': '吸附 OFF',
+  'toolbar.gridSnap.title': '切換節點網格吸附',
+
   // Language
   'lang.label': '中',
 };

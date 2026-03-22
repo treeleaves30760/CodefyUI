@@ -3,16 +3,26 @@ import { create } from 'zustand';
 interface UIState {
   tooltipsEnabled: boolean;
   toggleTooltips: () => void;
+  gridSnapEnabled: boolean;
+  toggleGridSnap: () => void;
 }
 
-const STORAGE_KEY = 'codefyui-tooltips';
+const TOOLTIPS_KEY = 'codefyui-tooltips';
+const GRIDSNAP_KEY = 'codefyui-gridsnap';
 
 export const useUIStore = create<UIState>((set) => ({
-  tooltipsEnabled: localStorage.getItem(STORAGE_KEY) !== 'false',
+  tooltipsEnabled: localStorage.getItem(TOOLTIPS_KEY) !== 'false',
   toggleTooltips: () =>
     set((state) => {
       const next = !state.tooltipsEnabled;
-      localStorage.setItem(STORAGE_KEY, String(next));
+      localStorage.setItem(TOOLTIPS_KEY, String(next));
       return { tooltipsEnabled: next };
+    }),
+  gridSnapEnabled: localStorage.getItem(GRIDSNAP_KEY) === 'true',
+  toggleGridSnap: () =>
+    set((state) => {
+      const next = !state.gridSnapEnabled;
+      localStorage.setItem(GRIDSNAP_KEY, String(next));
+      return { gridSnapEnabled: next };
     }),
 }));

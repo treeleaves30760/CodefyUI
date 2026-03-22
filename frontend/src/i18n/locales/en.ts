@@ -138,6 +138,11 @@ const en = {
   'toolbar.tooltips.off': 'Tips OFF',
   'toolbar.tooltips.title': 'Toggle node description tooltips',
 
+  // Grid Snap
+  'toolbar.gridSnap.on': 'Snap ON',
+  'toolbar.gridSnap.off': 'Snap OFF',
+  'toolbar.gridSnap.title': 'Toggle grid snapping for node alignment',
+
   // Language
   'lang.label': 'EN',
 } as const;

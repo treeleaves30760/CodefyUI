@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
   Background,
   Controls,
   MiniMap,
   BackgroundVariant,
+  useReactFlow,
   type NodeTypes,
   type OnConnect,
   type IsValidConnection,
@@ -17,12 +18,14 @@ import BaseNode from '../Nodes/BaseNode';
 import PresetNode from '../Nodes/PresetNode';
 import { EmptyCanvasOverlay } from './EmptyCanvasOverlay';
 import { EdgeDataTooltip } from './EdgeDataTooltip';
+import { QuickNodeSearch } from './QuickNodeSearch';
 import {
   NodeContextMenu,
   useNodeContextMenuItems,
   type ContextMenuPosition,
 } from '../ContextMenu/NodeContextMenu';
 import { useTabStore } from '../../store/tabStore';
+import { useUIStore } from '../../store/uiStore';
 import { useDragAndDrop } from '../../hooks/useDragAndDrop';
 import { isValidConnection } from '../../utils';
 import { useI18n } from '../../i18n';
@@ -45,6 +48,13 @@ export function FlowCanvas() {
   const duplicateNode = useTabStore((s) => s.duplicateNode);
   const renameNode = useTabStore((s) => s.renameNode);
   const { t } = useI18n();
+  const gridSnapEnabled = useUIStore((s) => s.gridSnapEnabled);
+  const { screenToFlowPosition } = useReactFlow();
+
+  const [quickSearch, setQuickSearch] = useState<{
+    screen: { x: number; y: number };
+    flow: { x: number; y: number };
+  } | null>(null);
 
   const [contextMenu, setContextMenu] = useState<ContextMenuPosition | null>(null);
   const [edgeTooltip, setEdgeTooltip] = useState<{
@@ -126,10 +136,36 @@ export function FlowCanvas() {
     [outputSummaries, activeTab.nodes]
   );
 
+  // Double-click on pane to open quick node search
+  const screenToFlowRef = useRef(screenToFlowPosition);
+  screenToFlowRef.current = screenToFlowPosition;
+  const setQuickSearchRef = useRef(setQuickSearch);
+  setQuickSearchRef.current = setQuickSearch;
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      const flowPos = screenToFlowRef.current({ x: e.clientX, y: e.clientY });
+      setQuickSearchRef.current({ screen: { x: e.clientX, y: e.clientY }, flow: flowPos });
+    };
+    // Wait for React Flow to mount, then attach directly to .react-flow__pane
+    const timer = setTimeout(() => {
+      const pane = document.querySelector('.react-flow__pane');
+      if (pane) {
+        pane.addEventListener('dblclick', handler as EventListener);
+      }
+    }, 100);
+    return () => {
+      clearTimeout(timer);
+      const pane = document.querySelector('.react-flow__pane');
+      if (pane) pane.removeEventListener('dblclick', handler as EventListener);
+    };
+  }, []);
+
   const handlePaneClick = useCallback(() => {
     setSelectedNodeId(null);
     setContextMenu(null);
     setEdgeTooltip(null);
+    // quickSearch is closed by QuickNodeSearch's own outside-click handler
   }, [setSelectedNodeId]);
 
   const handleNodeContextMenu = useCallback(
@@ -189,7 +225,9 @@ export function FlowCanvas() {
           style: { stroke: '#555', strokeWidth: 2 },
         }}
         connectionLineStyle={{ stroke: '#888', strokeWidth: 2 }}
-        snapToGrid={false}
+        zoomOnDoubleClick={false}
+        snapToGrid={gridSnapEnabled}
+        snapGrid={[24, 24]}
       >
         <Background
           color="#2a2a2a"
@@ -231,6 +269,14 @@ export function FlowCanvas() {
           portName={edgeTooltip.portName}
           summary={edgeTooltip.summary}
           onClose={() => setEdgeTooltip(null)}
+        />
+      )}
+
+      {quickSearch && (
+        <QuickNodeSearch
+          screenPos={quickSearch.screen}
+          flowPos={quickSearch.flow}
+          onClose={() => setQuickSearch(null)}
         />
       )}
     </div>

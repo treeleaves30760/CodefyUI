@@ -179,6 +179,29 @@ function TooltipToggle() {
   );
 }
 
+/* ── Grid snap toggle button ─────────────────────────────────── */
+
+function GridSnapToggle() {
+  const gridSnapEnabled = useUIStore((s) => s.gridSnapEnabled);
+  const toggle = useUIStore((s) => s.toggleGridSnap);
+  const { t } = useI18n();
+
+  return (
+    <button
+      onClick={toggle}
+      className={styles.tooltipToggle}
+      title={t('toolbar.gridSnap.title')}
+      style={{
+        color: gridSnapEnabled ? BRAND.primary : TEXT.muted,
+        borderColor: gridSnapEnabled ? BRAND.primary : SURFACE.borderMedium,
+        background: gridSnapEnabled ? 'rgba(33,150,243,0.1)' : 'transparent',
+      }}
+    >
+      {t(gridSnapEnabled ? 'toolbar.gridSnap.on' : 'toolbar.gridSnap.off')}
+    </button>
+  );
+}
+
 /* ── Main Toolbar ──────────────────────────────────────────────── */
 
 export function Toolbar() {
@@ -446,9 +469,9 @@ export function Toolbar() {
         onChange={handleImportFile}
       />
 
-      {/* Right side: tooltip toggle + status + language */}
+      {/* Right side: toggles + status + language */}
       <div className={styles.rightCluster}>
-        {/* Tooltip toggle */}
+        <GridSnapToggle />
         <TooltipToggle />
 
         <div className={styles.statusGroup}>
