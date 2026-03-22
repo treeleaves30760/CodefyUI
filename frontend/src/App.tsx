@@ -8,6 +8,7 @@ import { ResultsPanel } from './components/ResultsPanel/ResultsPanel';
 import { PresetConfigModal } from './components/PresetModal/PresetConfigModal';
 import { SubgraphEditorModal } from './components/SubgraphEditor/SubgraphEditorModal';
 import { useTabStore } from './store/tabStore';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 import styles from './App.module.css';
 
 function TabContent({ tabId }: { tabId: string }) {
@@ -37,6 +38,7 @@ function TabContent({ tabId }: { tabId: string }) {
 }
 
 function App() {
+  useKeyboardShortcuts();
   const tabs = useTabStore((s) => s.tabs);
 
   return (

@@ -14,6 +14,13 @@ export interface LogEntry {
   type: 'info' | 'error' | 'success';
 }
 
+interface UndoSnapshot {
+  nodes: Node<NodeData>[];
+  edges: Edge[];
+}
+
+const MAX_UNDO = 50;
+
 export interface TabState {
   id: string;
   name: string;
@@ -23,6 +30,9 @@ export interface TabState {
   selectedNodeId: string | null;
   presetModalNodeId: string | null;
   subgraphModalNodeId: string | null;
+  // undo/redo
+  undoStack: UndoSnapshot[];
+  redoStack: UndoSnapshot[];
   // execution
   status: ExecutionStatus;
   logs: LogEntry[];
@@ -40,6 +50,8 @@ function createTabState(id: string, name: string): TabState {
     selectedNodeId: null,
     presetModalNodeId: null,
     subgraphModalNodeId: null,
+    undoStack: [],
+    redoStack: [],
     status: 'idle',
     logs: [],
     ws: new ExecutionWebSocket(),
@@ -82,6 +94,16 @@ interface TabStoreState {
   deleteNode: (nodeId: string) => void;
   duplicateNode: (nodeId: string) => void;
   renameNode: (nodeId: string, newLabel: string) => void;
+
+  // undo/redo
+  pushUndoSnapshot: () => void;
+  undo: () => void;
+  redo: () => void;
+
+  // clipboard (copy/paste)
+  clipboard: { nodes: Node<NodeData>[]; edges: Edge[] } | null;
+  copySelectedNodes: () => void;
+  pasteNodes: () => void;
 
   // execution actions (operate on active tab)
   setStatus: (s: ExecutionStatus) => void;
@@ -205,21 +227,45 @@ export const useTabStore = create<TabStoreState>((set, get) => ({
   setEdges: (edges) =>
     set({ tabs: updateTab(get().tabs, get().activeTabId, () => ({ edges })) }),
 
-  onNodesChange: (changes) =>
+  onNodesChange: (changes) => {
+    // Snapshot at drag start for undo (not every pixel)
+    const hasDragStart = changes.some(
+      (c) => c.type === 'position' && (c as any).dragging === true
+    );
+    if (hasDragStart) {
+      // Check if we already snapshotted for this drag session
+      const tab = get().getActiveTab();
+      const wasDragging = tab.nodes.some((n) => n.dragging);
+      if (!wasDragging) {
+        get().pushUndoSnapshot();
+      }
+    }
+    // Snapshot on node removal via Delete key
+    const hasRemove = changes.some((c) => c.type === 'remove');
+    if (hasRemove) {
+      get().pushUndoSnapshot();
+    }
     set({
       tabs: updateTab(get().tabs, get().activeTabId, (tab) => ({
         nodes: applyNodeChanges(changes, tab.nodes) as Node<NodeData>[],
       })),
-    }),
+    });
+  },
 
-  onEdgesChange: (changes) =>
+  onEdgesChange: (changes) => {
+    const hasRemove = changes.some((c) => c.type === 'remove');
+    if (hasRemove) {
+      get().pushUndoSnapshot();
+    }
     set({
       tabs: updateTab(get().tabs, get().activeTabId, (tab) => ({
         edges: applyEdgeChanges(changes, tab.edges),
       })),
-    }),
+    });
+  },
 
   onConnect: (connection) => {
+    get().pushUndoSnapshot();
     const edge: Edge = {
       id: generateId(),
       source: connection.source,
@@ -237,6 +283,7 @@ export const useTabStore = create<TabStoreState>((set, get) => ({
   },
 
   addNode: (definition, position) => {
+    get().pushUndoSnapshot();
     const defaultParams: Record<string, any> = {};
     for (const p of definition.params) {
       defaultParams[p.name] = p.default;
@@ -261,6 +308,7 @@ export const useTabStore = create<TabStoreState>((set, get) => ({
   },
 
   addPresetNode: (preset, position) => {
+    get().pushUndoSnapshot();
     const internalParams: Record<string, Record<string, any>> = {};
     for (const n of preset.nodes) {
       internalParams[n.id] = { ...n.params };
@@ -386,7 +434,8 @@ export const useTabStore = create<TabStoreState>((set, get) => ({
       })),
     }),
 
-  clear: () =>
+  clear: () => {
+    get().pushUndoSnapshot();
     set({
       tabs: updateTab(get().tabs, get().activeTabId, () => ({
         nodes: [],
@@ -395,7 +444,8 @@ export const useTabStore = create<TabStoreState>((set, get) => ({
         presetModalNodeId: null,
         subgraphModalNodeId: null,
       })),
-    }),
+    });
+  },
 
   getSerializedGraph: () => {
     const tab = get().getActiveTab();
@@ -434,16 +484,19 @@ export const useTabStore = create<TabStoreState>((set, get) => ({
     };
   },
 
-  deleteNode: (nodeId) =>
+  deleteNode: (nodeId) => {
+    get().pushUndoSnapshot();
     set({
       tabs: updateTab(get().tabs, get().activeTabId, (tab) => ({
         nodes: tab.nodes.filter((n) => n.id !== nodeId),
         edges: tab.edges.filter((e) => e.source !== nodeId && e.target !== nodeId),
         selectedNodeId: tab.selectedNodeId === nodeId ? null : tab.selectedNodeId,
       })),
-    }),
+    });
+  },
 
   duplicateNode: (nodeId) => {
+    get().pushUndoSnapshot();
     const tab = get().getActiveTab();
     const original = tab.nodes.find((n) => n.id === nodeId);
     if (!original) return;
@@ -461,14 +514,122 @@ export const useTabStore = create<TabStoreState>((set, get) => ({
     });
   },
 
-  renameNode: (nodeId, newLabel) =>
+  renameNode: (nodeId, newLabel) => {
+    get().pushUndoSnapshot();
     set({
       tabs: updateTab(get().tabs, get().activeTabId, (tab) => ({
         nodes: tab.nodes.map((n) =>
           n.id === nodeId ? { ...n, data: { ...n.data, label: newLabel } } : n
         ),
       })),
-    }),
+    });
+  },
+
+  // ── Undo/Redo ──
+
+  pushUndoSnapshot: () => {
+    const tab = get().getActiveTab();
+    const snapshot: UndoSnapshot = {
+      nodes: JSON.parse(JSON.stringify(tab.nodes)),
+      edges: JSON.parse(JSON.stringify(tab.edges)),
+    };
+    set({
+      tabs: updateTab(get().tabs, get().activeTabId, (t) => ({
+        undoStack: [...t.undoStack.slice(-(MAX_UNDO - 1)), snapshot],
+        redoStack: [],
+      })),
+    });
+  },
+
+  undo: () => {
+    const tab = get().getActiveTab();
+    if (tab.undoStack.length === 0) return;
+    const current: UndoSnapshot = {
+      nodes: JSON.parse(JSON.stringify(tab.nodes)),
+      edges: JSON.parse(JSON.stringify(tab.edges)),
+    };
+    const prev = tab.undoStack[tab.undoStack.length - 1];
+    set({
+      tabs: updateTab(get().tabs, get().activeTabId, (t) => ({
+        nodes: prev.nodes,
+        edges: prev.edges,
+        undoStack: t.undoStack.slice(0, -1),
+        redoStack: [...t.redoStack, current],
+      })),
+    });
+  },
+
+  redo: () => {
+    const tab = get().getActiveTab();
+    if (tab.redoStack.length === 0) return;
+    const current: UndoSnapshot = {
+      nodes: JSON.parse(JSON.stringify(tab.nodes)),
+      edges: JSON.parse(JSON.stringify(tab.edges)),
+    };
+    const next = tab.redoStack[tab.redoStack.length - 1];
+    set({
+      tabs: updateTab(get().tabs, get().activeTabId, (t) => ({
+        nodes: next.nodes,
+        edges: next.edges,
+        redoStack: t.redoStack.slice(0, -1),
+        undoStack: [...t.undoStack, current],
+      })),
+    });
+  },
+
+  // ── Clipboard (copy/paste) ──
+
+  clipboard: null,
+
+  copySelectedNodes: () => {
+    const tab = get().getActiveTab();
+    const selected = tab.nodes.filter((n) => n.selected);
+    if (selected.length === 0) return;
+    const selectedIds = new Set(selected.map((n) => n.id));
+    const internalEdges = tab.edges.filter(
+      (e) => selectedIds.has(e.source) && selectedIds.has(e.target)
+    );
+    set({
+      clipboard: {
+        nodes: JSON.parse(JSON.stringify(selected)),
+        edges: JSON.parse(JSON.stringify(internalEdges)),
+      },
+    });
+  },
+
+  pasteNodes: () => {
+    const { clipboard } = get();
+    if (!clipboard || clipboard.nodes.length === 0) return;
+    get().pushUndoSnapshot();
+
+    const idMap = new Map<string, string>();
+    clipboard.nodes.forEach((n) => idMap.set(n.id, generateId()));
+
+    const newNodes: Node<NodeData>[] = clipboard.nodes.map((n) => ({
+      ...JSON.parse(JSON.stringify(n)),
+      id: idMap.get(n.id)!,
+      position: { x: n.position.x + 50, y: n.position.y + 50 },
+      selected: true,
+      data: { ...JSON.parse(JSON.stringify(n.data)), executionStatus: 'idle' as const, error: undefined },
+    }));
+
+    const newEdges: Edge[] = clipboard.edges.map((e) => ({
+      ...JSON.parse(JSON.stringify(e)),
+      id: generateId(),
+      source: idMap.get(e.source) ?? e.source,
+      target: idMap.get(e.target) ?? e.target,
+    }));
+
+    set({
+      tabs: updateTab(get().tabs, get().activeTabId, (tab) => ({
+        nodes: [
+          ...tab.nodes.map((n) => ({ ...n, selected: false })),
+          ...newNodes,
+        ],
+        edges: [...tab.edges, ...newEdges],
+      })),
+    });
+  },
 
   // ── Execution actions (active tab) ──
 
